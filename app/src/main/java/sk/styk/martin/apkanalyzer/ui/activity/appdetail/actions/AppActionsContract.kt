@@ -14,14 +14,6 @@ import sk.styk.martin.apkanalyzer.ui.base.BasePresenter
  */
 interface AppActionsContract {
     interface View {
-        fun setUpViews()
-
-        fun dismiss()
-
-        fun dismissAllowingStateLoss()
-
-        fun showOnlyApkFileRelatedActions()
-
         fun createSnackbar(text: String, @StringRes actionName: Int? = null, action: android.view.View.OnClickListener? = null)
 
         fun openRepackagedDetection(fragment: RepackagedDetectionFragment)
@@ -63,6 +55,5 @@ interface AppActionsContract {
 
     companion object {
         const val PACKAGE_TO_PERFORM_ACTIONS = "package_to_perform_actions"
-        const val REQUEST_STORAGE_PERMISSION = 11
     }
 }

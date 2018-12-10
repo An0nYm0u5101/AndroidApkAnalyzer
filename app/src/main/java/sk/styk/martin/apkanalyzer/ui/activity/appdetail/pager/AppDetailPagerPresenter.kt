@@ -44,7 +44,8 @@ class AppDetailPagerPresenter(
             view.showLoadingFailed()
 
         } else {
-            view.showAppDetails(packageName = appDetailData.generalData.packageName, icon = appDetailData.generalData.icon)
+
+            view.showAppDetails(packageName = appDetailData.generalData.packageName, icon = appDetailData.generalData.icon, analysisMode = appDetailData.analysisMode)
 
 //            Temporary disable uploads
 //            AppDataUploadTask().execute(appDetailData)
@@ -53,13 +54,6 @@ class AppDetailPagerPresenter(
 
     override fun onLoaderReset(loader: Loader<AppDetailData?>) {
         appDetailData = null
-    }
-
-    override fun actionButtonClick() {
-        // show actions only when data is loaded
-        appDetailData?.let {
-            view.showActionDialog(it)
-        }
     }
 
     override fun getData(): AppDetailData? {

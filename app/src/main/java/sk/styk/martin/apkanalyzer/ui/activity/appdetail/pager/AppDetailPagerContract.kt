@@ -17,15 +17,11 @@ interface AppDetailPagerContract {
 
         fun showLoadingFailed()
 
-        fun showAppDetails(packageName: String, icon: Drawable?)
-
-        fun showActionDialog(data: AppDetailData)
+        fun showAppDetails(packageName: String, icon: Drawable?, analysisMode: AppDetailData.AnalysisMode)
     }
 
     interface Presenter : BasePresenter<View> {
         fun initialize(bundle: Bundle)
-
-        fun actionButtonClick()
 
         fun getData(): AppDetailData?
     }

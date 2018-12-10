@@ -6,11 +6,14 @@ import android.net.Uri
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.view.MenuItem
+import android.view.View
 import kotlinx.android.synthetic.main.activity_app_detail.*
 import sk.styk.martin.apkanalyzer.R
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.ApkFileActionsSpeedMenu
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerContract.Companion.ARG_PACKAGE_NAME
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerContract.Companion.ARG_PACKAGE_PATH
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerFragment
+import sk.styk.martin.apkanalyzer.ui.customview.FloatingActionButton
 import sk.styk.martin.apkanalyzer.util.AdUtils
 
 /**
@@ -53,27 +56,32 @@ class AppDetailActivity : AppCompatActivity(), AppDetailActivityContract.View {
         // this happens only in tablet mode when this activity is rotated from horizontal to vertical orientation
         if (btn_actions == null) {
             app_bar.setExpanded(false)
-        } else {
-            btn_actions?.let {
-                it.setOnClickListener { _ ->
-                    //delegate to fragment
-                    (supportFragmentManager.findFragmentByTag(AppDetailPagerFragment.TAG) as AppDetailPagerFragment).presenter.actionButtonClick()
-                }
-            }
         }
+//        else {
+//            btn_actions?.let {
+//                if (it is FloatingActionButton) {
+//                    it.speedDialMenuAdapter = ApkFileActionsSpeedMenu((supportFragmentManager.findFragmentByTag(AppDetailPagerFragment.TAG) as AppDetailPagerFragment).appActionsPresenter)
+//                    it.contentCoverEnabled = true
+//                    it.visibility = View.VISIBLE
+//                    it.show()
+//                    it.bringToFront()
+//                }
+//            }
+//        }
 
-        AdUtils.displayAd(ad_view, object : AdUtils.AdLoadedListener {
-            override fun onAdLoaded() {
-                val displayHeight = resources.displayMetrics.heightPixels / resources.displayMetrics.density
-                val bannerHeight = when {
-                    displayHeight <= 400 -> resources.getDimensionPixelOffset(R.dimen.ad_banner_height_small)
-                    displayHeight > 400 && displayHeight < 720 -> resources.getDimensionPixelOffset(R.dimen.ad_banner_height_medium)
-                    else -> resources.getDimensionPixelOffset(R.dimen.ad_banner_height_large)
-                }
+        AdUtils.displayAd(ad_view,
+                object : AdUtils.AdLoadedListener {
+                    override fun onAdLoaded() {
+                        val displayHeight = resources.displayMetrics.heightPixels / resources.displayMetrics.density
+                        val bannerHeight = when {
+                            displayHeight <= 400 -> resources.getDimensionPixelOffset(R.dimen.ad_banner_height_small)
+                            displayHeight > 400 && displayHeight < 720 -> resources.getDimensionPixelOffset(R.dimen.ad_banner_height_medium)
+                            else -> resources.getDimensionPixelOffset(R.dimen.ad_banner_height_large)
+                        }
 
-                item_detail_container.setPadding(0, 0, 0, bannerHeight)
-            }
-        })
+                        item_detail_container.setPadding(0, 0, 0, bannerHeight)
+                    }
+                })
 
     }
 

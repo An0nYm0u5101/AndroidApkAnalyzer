@@ -18,47 +18,19 @@ class AppActionsPresenter : AppActionsContract.Presenter {
         appDetailData = bundle.getParcelable(AppActionsContract.PACKAGE_TO_PERFORM_ACTIONS) ?: throw IllegalArgumentException()
     }
 
-    override fun resume() {
-        view.setUpViews()
-        if (appDetailData.isAnalyzedApkFile)
-            view.showOnlyApkFileRelatedActions()
-    }
+    override fun exportClick() = view.startApkExport(appDetailData)
 
-    override fun exportClick() {
-        view.startApkExport(appDetailData)
-    }
+    override fun shareClick() = view.startSharingActivity(appDetailData.generalData.apkDirectory)
 
-    override fun shareClick() {
-        view.startSharingActivity(appDetailData.generalData.apkDirectory)
-        view.dismiss()
-    }
+    override fun showGooglePlayClick() = view.openGooglePlay(appDetailData.generalData.packageName)
 
-    override fun showGooglePlayClick() {
-        view.openGooglePlay(appDetailData.generalData.packageName)
-        view.dismiss()
-    }
+    override fun repackagedDetectionClick() = view.openRepackagedDetection(RepackagedDetectionFragment.newInstance(appDetailData))
 
-    override fun repackagedDetectionClick() {
-        view.openRepackagedDetection(RepackagedDetectionFragment.newInstance(appDetailData))
-        view.dismiss()
-    }
+    override fun showManifestClick() = view.openManifestActivity(appDetailData)
 
-    override fun showManifestClick() {
-        view.openManifestActivity(appDetailData)
-        view.dismiss()
-    }
+    override fun showSystemPageClick() = view.openSystemAboutActivity(appDetailData.generalData.packageName)
 
-    override fun showSystemPageClick() {
-        view.openSystemAboutActivity(appDetailData.generalData.packageName)
-        view.dismiss()
-    }
+    override fun installAppClick() = view.startApkInstall(appDetailData.generalData.apkDirectory)
 
-    override fun installAppClick() {
-        view.startApkInstall(appDetailData.generalData.apkDirectory)
-        view.dismiss()
-    }
-
-    override fun saveIconClick() {
-        view.startIconSave(appDetailData)
-    }
+    override fun saveIconClick() = view.startIconSave(appDetailData)
 }

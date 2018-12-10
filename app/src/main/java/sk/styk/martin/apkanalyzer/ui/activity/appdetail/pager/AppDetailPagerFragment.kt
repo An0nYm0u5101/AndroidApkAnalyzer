@@ -1,22 +1,42 @@
 package sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager
 
+import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
+import android.support.annotation.StringRes
+import android.support.design.widget.Snackbar
 import android.support.v4.app.Fragment
-import android.support.v7.app.AppCompatActivity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import com.google.firebase.analytics.FirebaseAnalytics
 import kotlinx.android.synthetic.main.activity_app_detail.toolbar_layout
 import kotlinx.android.synthetic.main.activity_app_detail.toolbar_layout_image
 import kotlinx.android.synthetic.main.fragment_app_detail.*
+import permissions.dispatcher.NeedsPermission
+import permissions.dispatcher.OnPermissionDenied
+import permissions.dispatcher.RuntimePermissions
+import sk.styk.martin.apkanalyzer.ApkAnalyzer
 import sk.styk.martin.apkanalyzer.R
 import sk.styk.martin.apkanalyzer.business.analysis.task.AppDetailLoader
+import sk.styk.martin.apkanalyzer.business.analysis.task.DrawableSaveService
+import sk.styk.martin.apkanalyzer.business.analysis.task.FileCopyService
 import sk.styk.martin.apkanalyzer.model.detail.AppDetailData
-import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.AppActionsDialog
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.ApkFileActionsSpeedMenu
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.AppActionsContract
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.AppActionsPresenter
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.InstalledAppActionsSpeedMenu
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.manifest.ManifestActivity
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerContract.Companion.ARG_PACKAGE_NAME
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerContract.Companion.ARG_PACKAGE_PATH
+import sk.styk.martin.apkanalyzer.ui.activity.repackageddetection.RepackagedDetectionFragment
+import sk.styk.martin.apkanalyzer.ui.customview.FloatingActionButton
+import sk.styk.martin.apkanalyzer.util.file.AppOperations
+import sk.styk.martin.apkanalyzer.util.file.toBitmap
 
 /**
  * A fragment representing a single Item detail screen.
@@ -26,17 +46,20 @@ import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerCont
  *
  * @author Martin Styk
  */
-class AppDetailPagerFragment : Fragment(), AppDetailPagerContract.View {
+@RuntimePermissions
+class AppDetailPagerFragment : Fragment(), AppDetailPagerContract.View, AppActionsContract.View {
 
     private lateinit var adapter: AppDetailPagerAdapter
-    lateinit var presenter: AppDetailPagerContract.Presenter
+    lateinit var pagerPresenter: AppDetailPagerContract.Presenter
+    lateinit var appActionsPresenter: AppActionsContract.Presenter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        presenter = AppDetailPagerPresenter(AppDetailLoader(context = requireContext(),
+        pagerPresenter = AppDetailPagerPresenter(AppDetailLoader(context = requireContext(),
                 packageName = arguments?.getString(ARG_PACKAGE_NAME),
                 packageUri = arguments?.getParcelable(ARG_PACKAGE_PATH)), loaderManager)
-        adapter = AppDetailPagerAdapter(requireContext(), fragmentManager!!, presenter)
+        appActionsPresenter = AppActionsPresenter()
+        adapter = AppDetailPagerAdapter(requireContext(), fragmentManager!!, pagerPresenter)
     }
 
 
@@ -47,15 +70,15 @@ class AppDetailPagerFragment : Fragment(), AppDetailPagerContract.View {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        presenter.view = this
-        presenter.initialize(arguments!!)
+        pagerPresenter.view = this
+        pagerPresenter.initialize(arguments!!)
+
+        appActionsPresenter.view = this
     }
 
     override fun setUpViews() {
         pager.adapter = adapter
         tabs.setupWithViewPager(pager)
-        // if we are in 2-pane mode initialize floating button
-        btn_actions?.setOnClickListener { presenter.actionButtonClick() }
     }
 
     override fun hideLoading() {
@@ -67,16 +90,120 @@ class AppDetailPagerFragment : Fragment(), AppDetailPagerContract.View {
         activity?.toolbar_layout?.title = getString(R.string.loading_failed)
     }
 
-    override fun showAppDetails(packageName: String, icon: Drawable?) {
+    override fun showAppDetails(packageName: String, icon: Drawable?, analysisMode: AppDetailData.AnalysisMode) {
+        appActionsPresenter.initialize( Bundle().apply { putParcelable(AppActionsContract.PACKAGE_TO_PERFORM_ACTIONS, pagerPresenter.getData()) })
+
         activity?.toolbar_layout?.title = packageName
         activity?.toolbar_layout_image?.setImageDrawable(icon)
+        val actionBtn = btn_actions
+                ?: activity?.findViewById<FloatingActionButton>(R.id.btn_actions)
+        actionBtn?.let {
+            if (it is FloatingActionButton) {
+                it.speedDialMenuAdapter = if (analysisMode == AppDetailData.AnalysisMode.APK_FILE)
+                    ApkFileActionsSpeedMenu(appActionsPresenter)
+                else
+                    InstalledAppActionsSpeedMenu(appActionsPresenter)
+                it.contentCoverEnabled = true
+                it.visibility = View.VISIBLE
+                it.show()
+            }
+        }
 
         pager.visibility = View.VISIBLE
     }
 
-    override fun showActionDialog(data: AppDetailData) {
-        AppActionsDialog.newInstance(data)
-                .show((context as AppCompatActivity).supportFragmentManager, AppActionsDialog::class.java.simpleName)
+    // APK Actions
+
+    override fun createSnackbar(text: String, @StringRes actionName: Int?, action: View.OnClickListener?) {
+        val snackbar = Snackbar.make(requireActivity().findViewById(android.R.id.content), text, Snackbar.LENGTH_LONG)
+        if (action != null && actionName != null)
+            snackbar.setAction(actionName, action)
+        snackbar.show()
+    }
+
+    override fun openRepackagedDetection(fragment: RepackagedDetectionFragment) {
+        fragmentManager?.beginTransaction()
+                ?.replace(R.id.container_frame, fragment)
+                ?.addToBackStack(RepackagedDetectionFragment.TAG)
+                ?.commit();
+        logSelectEvent("repackaged-detection")
+    }
+
+    override fun openManifestActivity(appDetailData: AppDetailData) {
+        startActivity(ManifestActivity.createIntent(requireContext(), appDetailData))
+        logSelectEvent("show-manifest")
+    }
+
+    override fun startApkExport(appDetailData: AppDetailData) {
+        exportApkWithPermissionCheck(appDetailData)
+    }
+
+    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    fun exportApk(appDetailData: AppDetailData) {
+        val targetFile = FileCopyService.startService(requireContext(), appDetailData)
+        createSnackbar(requireContext().getString(R.string.copy_apk_background, targetFile))
+        logSelectEvent("export-apk")
+    }
+
+    @OnPermissionDenied(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    fun onStorageDenied() {
+        createSnackbar(getString(R.string.permission_not_granted))
+    }
+
+    override fun startIconSave(appDetailData: AppDetailData) {
+        saveIconWithPermissionCheck(appDetailData)
+    }
+
+    @NeedsPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    fun saveIcon(appDetailData: AppDetailData) {
+        val targetFile = DrawableSaveService.startService(requireContext(), appDetailData,
+                appDetailData.generalData.icon?.toBitmap())
+
+        createSnackbar(requireContext().getString(R.string.save_icon_background, targetFile), R.string.action_show,
+                View.OnClickListener {
+                    val intent = Intent()
+                    intent.setAction(Intent.ACTION_VIEW)
+                    intent.setDataAndType(Uri.parse(targetFile), "image/png")
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try {
+                        ApkAnalyzer.context.startActivity(intent)
+                    } catch (e: ActivityNotFoundException) {
+                        Toast.makeText(ApkAnalyzer.context, R.string.activity_not_found_image, Toast.LENGTH_LONG).show()
+                    }
+                })
+        logSelectEvent("save-icon")
+    }
+
+    override fun startSharingActivity(apkPath: String) {
+        AppOperations.shareApkFile(requireContext(), apkPath)
+        logSelectEvent("share-apk")
+    }
+
+    override fun openGooglePlay(packageName: String) {
+        AppOperations.openGooglePlay(requireContext(), packageName)
+        logSelectEvent("open-google-play")
+    }
+
+    override fun openSystemAboutActivity(packageName: String) {
+        AppOperations.openAppSystemPage(requireContext(), packageName)
+        logSelectEvent("open-system-about")
+    }
+
+    override fun startApkInstall(apkPath: String) {
+        AppOperations.installPackage(requireContext(), apkPath)
+        logSelectEvent("install-apk")
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        onRequestPermissionsResult(requestCode, grantResults)
+    }
+
+    private fun logSelectEvent(itemId: String) {
+        val bundle = Bundle();
+        bundle.putString(FirebaseAnalytics.Param.ITEM_ID, itemId);
+        bundle.putString(FirebaseAnalytics.Param.CONTENT_TYPE, "apk-action");
+        FirebaseAnalytics.getInstance(requireContext()).logEvent(FirebaseAnalytics.Event.SELECT_CONTENT, bundle);
     }
 
     companion object {

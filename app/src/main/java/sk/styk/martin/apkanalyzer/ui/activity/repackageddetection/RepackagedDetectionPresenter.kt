@@ -37,7 +37,7 @@ class RepackagedDetectionPresenter(
     private val PIE_CHART_CURRENT_APP_SLICE = 0
 
     /**
-     * Initializes the presenter by showing/hiding proper views and starting data loading.
+     * Initializes the pagerPresenter by showing/hiding proper views and starting data loading.
      */
     override fun initialize(appDetailData: AppDetailData) {
         this.appDetailData = appDetailData
