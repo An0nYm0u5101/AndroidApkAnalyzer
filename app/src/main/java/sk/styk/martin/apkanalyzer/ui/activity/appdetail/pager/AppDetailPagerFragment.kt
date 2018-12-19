@@ -27,14 +27,19 @@ import sk.styk.martin.apkanalyzer.business.analysis.task.DrawableSaveService
 import sk.styk.martin.apkanalyzer.business.analysis.task.FileCopyService
 import sk.styk.martin.apkanalyzer.model.detail.AppDetailData
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.ApkFileActionsSpeedMenu
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.ApkFileActionsSpeedMenuMinimal
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.AppActionsContract
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.AppActionsDialog
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.AppActionsDialog.Companion.ACTIONS_MORE_REQUEST
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.AppActionsPresenter
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.InstalledAppActionsSpeedMenu
+import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.InstalledAppActionsSpeedMenuMinimal
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.manifest.ManifestActivity
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerContract.Companion.ARG_PACKAGE_NAME
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerContract.Companion.ARG_PACKAGE_PATH
 import sk.styk.martin.apkanalyzer.ui.activity.repackageddetection.RepackagedDetectionFragment
 import sk.styk.martin.apkanalyzer.ui.customview.FloatingActionButton
+import sk.styk.martin.apkanalyzer.util.DisplayHelper
 import sk.styk.martin.apkanalyzer.util.file.AppOperations
 import sk.styk.martin.apkanalyzer.util.file.toBitmap
 
@@ -91,22 +96,25 @@ class AppDetailPagerFragment : Fragment(), AppDetailPagerContract.View, AppActio
     }
 
     override fun showAppDetails(packageName: String, icon: Drawable?, analysisMode: AppDetailData.AnalysisMode) {
-        appActionsPresenter.initialize( Bundle().apply { putParcelable(AppActionsContract.PACKAGE_TO_PERFORM_ACTIONS, pagerPresenter.getData()) })
+        appActionsPresenter.initialize(Bundle().apply { putParcelable(AppActionsContract.PACKAGE_TO_PERFORM_ACTIONS, pagerPresenter.getData()) })
 
         activity?.toolbar_layout?.title = packageName
         activity?.toolbar_layout_image?.setImageDrawable(icon)
         val actionBtn = btn_actions
                 ?: activity?.findViewById<FloatingActionButton>(R.id.btn_actions)
         actionBtn?.let {
-            if (it is FloatingActionButton) {
-                it.speedDialMenuAdapter = if (analysisMode == AppDetailData.AnalysisMode.APK_FILE)
-                    ApkFileActionsSpeedMenu(appActionsPresenter)
-                else
-                    InstalledAppActionsSpeedMenu(appActionsPresenter)
-                it.contentCoverEnabled = true
-                it.visibility = View.VISIBLE
-                it.show()
+
+            val displayHeight = DisplayHelper.displayHeightDp(requireContext())
+            it.speedDialMenuAdapter = when (analysisMode) {
+                AppDetailData.AnalysisMode.APK_FILE ->
+                    if (displayHeight < 400) ApkFileActionsSpeedMenuMinimal(appActionsPresenter) else ApkFileActionsSpeedMenu(appActionsPresenter)
+                AppDetailData.AnalysisMode.INSTALLED_PACKAGE ->
+                    if (displayHeight < 400) InstalledAppActionsSpeedMenuMinimal(appActionsPresenter) else InstalledAppActionsSpeedMenu(appActionsPresenter)
             }
+
+            it.contentCoverEnabled = true
+            it.visibility = View.VISIBLE
+            it.show()
         }
 
         pager.visibility = View.VISIBLE
@@ -192,6 +200,11 @@ class AppDetailPagerFragment : Fragment(), AppDetailPagerContract.View, AppActio
     override fun startApkInstall(apkPath: String) {
         AppOperations.installPackage(requireContext(), apkPath)
         logSelectEvent("install-apk")
+    }
+
+    override fun showMoreActionsDialog(appDetailData: AppDetailData) {
+        AppActionsDialog.newInstance(appDetailData).show(fragmentManager, AppActionsDialog::class.java.simpleName)
+        logSelectEvent("show-more")
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {

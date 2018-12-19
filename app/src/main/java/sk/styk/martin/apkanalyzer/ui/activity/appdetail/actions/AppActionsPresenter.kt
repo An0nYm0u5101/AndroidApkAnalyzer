@@ -12,7 +12,7 @@ import sk.styk.martin.apkanalyzer.ui.activity.repackageddetection.RepackagedDete
 class AppActionsPresenter : AppActionsContract.Presenter {
 
     override lateinit var view: AppActionsContract.View
-    private lateinit var appDetailData: AppDetailData
+    override lateinit var appDetailData: AppDetailData
 
     override fun initialize(bundle: Bundle) {
         appDetailData = bundle.getParcelable(AppActionsContract.PACKAGE_TO_PERFORM_ACTIONS) ?: throw IllegalArgumentException()
@@ -33,4 +33,6 @@ class AppActionsPresenter : AppActionsContract.Presenter {
     override fun installAppClick() = view.startApkInstall(appDetailData.generalData.apkDirectory)
 
     override fun saveIconClick() = view.startIconSave(appDetailData)
+
+    override fun showMoreClick() = view.showMoreActionsDialog(appDetailData)
 }

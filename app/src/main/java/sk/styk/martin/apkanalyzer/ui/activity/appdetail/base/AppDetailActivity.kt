@@ -4,17 +4,16 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.support.design.widget.CoordinatorLayout
 import android.support.v7.app.AppCompatActivity
 import android.view.MenuItem
-import android.view.View
 import kotlinx.android.synthetic.main.activity_app_detail.*
 import sk.styk.martin.apkanalyzer.R
-import sk.styk.martin.apkanalyzer.ui.activity.appdetail.actions.ApkFileActionsSpeedMenu
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerContract.Companion.ARG_PACKAGE_NAME
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerContract.Companion.ARG_PACKAGE_PATH
 import sk.styk.martin.apkanalyzer.ui.activity.appdetail.pager.AppDetailPagerFragment
-import sk.styk.martin.apkanalyzer.ui.customview.FloatingActionButton
 import sk.styk.martin.apkanalyzer.util.AdUtils
+import sk.styk.martin.apkanalyzer.util.DisplayHelper
 
 /**
  * An activity representing a single Item detail screen. This
@@ -57,22 +56,11 @@ class AppDetailActivity : AppCompatActivity(), AppDetailActivityContract.View {
         if (btn_actions == null) {
             app_bar.setExpanded(false)
         }
-//        else {
-//            btn_actions?.let {
-//                if (it is FloatingActionButton) {
-//                    it.speedDialMenuAdapter = ApkFileActionsSpeedMenu((supportFragmentManager.findFragmentByTag(AppDetailPagerFragment.TAG) as AppDetailPagerFragment).appActionsPresenter)
-//                    it.contentCoverEnabled = true
-//                    it.visibility = View.VISIBLE
-//                    it.show()
-//                    it.bringToFront()
-//                }
-//            }
-//        }
 
         AdUtils.displayAd(ad_view,
                 object : AdUtils.AdLoadedListener {
                     override fun onAdLoaded() {
-                        val displayHeight = resources.displayMetrics.heightPixels / resources.displayMetrics.density
+                        val displayHeight = DisplayHelper.displayHeightDp(this@AppDetailActivity)
                         val bannerHeight = when {
                             displayHeight <= 400 -> resources.getDimensionPixelOffset(R.dimen.ad_banner_height_small)
                             displayHeight > 400 && displayHeight < 720 -> resources.getDimensionPixelOffset(R.dimen.ad_banner_height_medium)
@@ -80,6 +68,10 @@ class AppDetailActivity : AppCompatActivity(), AppDetailActivityContract.View {
                         }
 
                         item_detail_container.setPadding(0, 0, 0, bannerHeight)
+                        btn_actions?.layoutParams = CoordinatorLayout.LayoutParams(
+                                CoordinatorLayout.LayoutParams.WRAP_CONTENT,
+                                CoordinatorLayout.LayoutParams.WRAP_CONTENT
+                        ).apply { setMargins(0, 0, 0, bannerHeight) }
                     }
                 })
 

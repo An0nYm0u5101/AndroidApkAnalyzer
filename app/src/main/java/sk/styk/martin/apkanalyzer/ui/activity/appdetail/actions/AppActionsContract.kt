@@ -31,9 +31,14 @@ interface AppActionsContract {
         fun startApkInstall(apkPath: String)
 
         fun startIconSave(appDetailData: AppDetailData)
+
+        fun showMoreActionsDialog(appDetailData: AppDetailData)
+
     }
 
     interface Presenter : BasePresenter<View> {
+        var appDetailData: AppDetailData
+
         fun initialize(bundle: Bundle)
 
         fun exportClick()
@@ -51,6 +56,8 @@ interface AppActionsContract {
         fun installAppClick()
 
         fun saveIconClick()
+
+        fun showMoreClick()
     }
 
     companion object {
